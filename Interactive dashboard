@@ -1,0 +1,94 @@
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
+import pandas as pd
+import dash_bootstrap_components as dbc
+
+# Sample DataFrame (Replace with actual data)
+df = px.data.gapminder()
+
+# App setup
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# Color Theme
+colors = {
+    "background": "#f8f9fa",
+    "text": "#212529",
+    "primary": "#007bff",
+    "secondary": "#6c757d",
+    "accent": "#17a2b8",
+}
+
+# Layout
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col([
+            html.H2("📊 Interactive Dashboard", style={"color": colors["primary"]}),
+            html.P("Analyze sales trends across different regions.", style={"color": colors["text"]}),
+            
+            html.Label("Select Year:"),
+            dcc.Dropdown(
+                id="year-dropdown",
+                options=[{"label": year, "value": year} for year in sorted(df["year"].unique())],
+                value=df["year"].min(),
+                clearable=False,
+                style={"margin-bottom": "10px"},
+            ),
+
+            html.Label("Select Continent:"),
+            dcc.RadioItems(
+                id="continent-radio",
+                options=[{"label": cont, "value": cont} for cont in df["continent"].unique()],
+                value="Europe",
+                inline=True,
+                style={"margin-bottom": "20px"},
+            ),
+        ], width=3, style={"backgroundColor": colors["background"], "padding": "20px", "borderRadius": "10px"}),
+
+        dbc.Col([
+            dbc.Row([
+                dbc.Col(dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Total Population", className="card-title"),
+                        html.H4(id="total-population", className="card-text", style={"color": colors["primary"]})
+                    ])
+                ], color="light", inverse=False), width=4),
+
+                dbc.Col(dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Life Expectancy", className="card-title"),
+                        html.H4(id="life-expectancy", className="card-text", style={"color": colors["accent"]})
+                    ])
+                ], color="light", inverse=False), width=4),
+            ], className="mb-4"),
+
+            dcc.Graph(id="bar-chart"),
+        ], width=9)
+    ])
+], fluid=True)
+
+# Callbacks
+@app.callback(
+    [Output("bar-chart", "figure"),
+     Output("total-population", "children"),
+     Output("life-expectancy", "children")],
+    [Input("year-dropdown", "value"),
+     Input("continent-radio", "value")]
+)
+def update_dashboard(selected_year, selected_continent):
+    filtered_df = df[(df["year"] == selected_year) & (df["continent"] == selected_continent)]
+    
+    # Bar Chart
+    fig = px.bar(filtered_df, x="country", y="gdpPercap", color="country",
+                 title=f"GDP per Capita in {selected_continent} - {selected_year}",
+                 color_discrete_sequence=px.colors.qualitative.Set2)
+    
+    # KPI Values
+    total_pop = f"{filtered_df['pop'].sum() / 1e6:.2f}M"
+    avg_life_exp = f"{filtered_df['lifeExp'].mean():.1f} years"
+    
+    return fig, total_pop, avg_life_exp
+
+# Run app
+if __name__ == "__main__":
+    app.run_server(debug=True)
